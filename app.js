@@ -1,12 +1,12 @@
 var cookieParser = require('cookie-parser');
 var express = require('express');
+var User = require("./models/users.js") //load the model
 
 // need this module for session cookies 
 var session = require('express-session');
 var app = express();
 var bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: true }));
-
 
 // how we setup our seesion library -- just once 
 app.use(session({
@@ -27,26 +27,10 @@ app.use(cookieParser());
 // add the database 
 const mongoose = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/hw3', { useNewUrlParser: true, useUnifiedTopology: true });
-// we create a scheme first 
-const userSchema = new mongoose.Schema({
-    username: String,
-    password: String,
-});
-
-// we create a collection called WifiQ with the wifiSchema
-const User = mongoose.model("User", userSchema);
 
 //------------------------------------------------
 app.get('/', function (req, res) {
-
-    if (req.session.page_views) {
-        req.session.page_views++;
-        res.send("You visited this page " + req.session.page_views + " times");
-    } else {
-        // first HTTP when page_views is not defined. 
-        req.session.page_views = 1;
-        res.send("Welcome to this page for the first time!");
-    }
+    res.redirect("/login.html");
 });
 
 //ADD NEW USER
@@ -56,13 +40,21 @@ app.post("/add_user", async function (req, res) {
         password: req.body.password
     };
     console.log(new_user);
-    new User(new_user).save();
-    res.redirect("/login.html")
+    new User(new_user).save(function (err, user) {
+        if (err) {
+            console.log(err);
+            res.redirect("/signup.html")
+        } else {
+             res.redirect("/login.html")
+        }
+    });
+
 });
 
 //LOGIN
 
-//This was the not post route
+//This was the not ajax post route
+
 // app.post("/login", function (req, res) {
 //     res.clearCookie("userdeet");
 //     var login_user = {
@@ -86,7 +78,6 @@ app.post("/add_user", async function (req, res) {
 //         }
 //     }
 //     );
-
 // });
 app.post("/login", function (req, res) {
     res.clearCookie("userdeet");
@@ -103,17 +94,22 @@ app.post("/login", function (req, res) {
             if (got_user == null) {
                 res.json({ msg: "Could not find Username! Please register!" });
             }
-            else if (got_user.password == login_user.password) {
-                req.session.validUser = true;
-                req.session.username = login_user.username;
-                res.json({ msg: "Success" });
-            } else {
-                res.json({ msg: "Wrong Password/Username combination. Please Try Again" });
+            else {
+                //Compare to the hash of the password
+                got_user.validatePassword(login_user.password).then(function (x) {
+                    if (x === true) {
+                        req.session.validUser = true;
+                        req.session.username = login_user.username;
+                        res.json({ msg: "Success" });
+                    }
+                    else {
+                        res.json({ msg: "Wrong Password/Username combination. Please Try Again" });
+                    }
+                });
             }
         }
     }
     );
-
 });
 
 //validate from map
@@ -140,6 +136,21 @@ app.get("/logout", function (req, res) {
     res.clearCookie("userdeet");
     // req.session.destroy()
     res.redirect("/login.html")
+});
+
+// custom 404 page 
+app.use(function (req, res) {
+    res.type('text/plain');
+    res.status(404);
+    res.send('404 - Not Found');
+});
+
+// custom 500 page 
+app.use(function (err, req, res, next) {
+    console.error(err.stack);
+    res.type('text/plain');
+    res.status(500);
+    res.send('500 - Server Error');
 });
 
 // launch 

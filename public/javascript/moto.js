@@ -16,7 +16,7 @@ function validate() {
                 console.log(str);
                 $("#text_add").html(str);
             }
-            startTimer();
+            initMQTT();
         }
     });
 }
@@ -66,32 +66,34 @@ function calculate_angle(curent_lat_lng, final_lat_lng) {
     }
 }
 
-function getAngle() {
-    $.get('http://localhost:8080', function (data, status) {
-        console.log(data);
-        data = JSON.parse(data);
-        if (data !== null) {
-            angle_degree = calculate_angle(data.current, data.final);
-            console.log(angle_degree);
-            rotate(angle_degree);
-        }
-    });
-
-    // $.ajax({
-    //     type: "GET",
-    //     url: 'http://localhost:8080',
-    // }).done(function (data) {
-    //     console.log(data);
-    //     data = JSON.parse(data);
-    //     if (data !== null) {
-    //         angle_degree = calculate_angle(data.current, data.final);
-    //         console.log(angle_degree);
-    //         rotate(angle_degree);
-    //     }
-    // })
-
+//MQTT
+var wsbroker = "localhost";  //mqtt websocket enabled broker
+var wsport = 9001 // port for above
+var client = new Paho.MQTT.Client(wsbroker, wsport,
+    "myclientid_" + parseInt(Math.random() * 100, 10));
+client.onConnectionLost = function (responseObject) {
+    console.log("connection lost: " + responseObject.errorMessage);
+};
+//WHENEVER MSG ARRIVES - UPDATE ANGLE
+client.onMessageArrived = function (message) {
+    // console.log(message.destinationName, ' -- ', message.payloadString);
+    data = JSON.parse(message.payloadString);
+    console.log(data);
+    angle_degree = calculate_angle(data.current, data.final);
+    console.log(angle_degree);
+    rotate(angle_degree);
+};
+var options = {
+    timeout: 3,
+    onSuccess: function () {
+        console.log("mqtt connected");
+        client.subscribe("coe457/coordinates", { qos: 2 });
+    },
+    onFailure: function (message) {
+        console.log("Connection failed: " + message.errorMessage);
+    }
 };
 
-function startTimer() {
-    setInterval(getAngle, 2000);
+function initMQTT() {
+    client.connect(options);
 }

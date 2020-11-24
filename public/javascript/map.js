@@ -15,17 +15,18 @@ function validate() {
         url: "/validate",
     }).done(function (response) {
         console.log(response);
-        if(!response.valid){
+        if (!response.valid) {
             window.location.href = "/unauthorized.html";
             // console.log("invalid");
-        }else{
+        } else {
             $("#name").html(response.username);
-            if(response.last_access != ""){
+            if (response.last_access != "") {
                 date = new Date(response.last_access);
-                str = "Welcome back " + response.username +"! You last accessed at: "+ date.toString() ;
+                str = "Welcome back " + response.username + "! You last accessed at: " + date.toString();
                 console.log(str);
                 $("#main").append(str);
             }
+            initMQTT();
             loadMap();
         }
     });
@@ -97,11 +98,33 @@ function addRoute() {
     });
     map.addLayer(current_layer);
 
-    $.post(
-        'http://localhost:8080',
-        JSON.stringify({
-            "current": curent_lat_lng,
-            "final": final_lat_lng
-        })
+    message = new Paho.MQTT.Message(JSON.stringify({
+        "current": curent_lat_lng,
+        "final": final_lat_lng
+    })
     );
+    message.destinationName = "coe457/coordinates";
+    client.send(message);
+}
+
+//MQTT
+var wsbroker = "localhost";  //mqtt websocket enabled broker
+var wsport = 9001 // port for above
+var client = new Paho.MQTT.Client(wsbroker, wsport,
+    "myclientid_" + parseInt(Math.random() * 100, 10));
+client.onConnectionLost = function (responseObject) {
+    console.log("connection lost: " + responseObject.errorMessage);
+};
+var options = {
+    timeout: 3,
+    onSuccess: function () {
+        console.log("mqtt connected");
+    },
+    onFailure: function (message) {
+        console.log("Connection failed: " + message.errorMessage);
+    }
+};
+
+function initMQTT() {
+    client.connect(options);
 }
