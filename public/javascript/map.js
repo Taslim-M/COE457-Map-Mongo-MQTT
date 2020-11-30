@@ -6,6 +6,8 @@ var final_lat_lng = null;
 
 var current_layer = null;
 
+var current_user_name = null;
+var remember_me = false;
 var map;
 var dir = MQ.routing.directions();
 function validate() {
@@ -17,14 +19,24 @@ function validate() {
         console.log(response);
         if (!response.valid) {
             window.location.href = "/unauthorized.html";
-            // console.log("invalid");
         } else {
-            $("#name").html(response.username);
-            if (response.last_access != "") {
-                date = new Date(response.last_access);
-                str = "Welcome back " + response.username + "! You last accessed at: " + date.toString();
-                console.log(str);
-                $("#main").append(str);
+            current_user_name = response.username;
+            remember_me = response.remember;
+            $("#name").html(current_user_name);
+            if (response.allow_cookie) {
+                console.log("cookies allowed");
+                //Check if first login
+                if (getCookie("last_time")) {
+                    last_time_cookie = getCookie("last_time");
+                    str = "Welcome back " + current_user_name + "! You last accessed at: " + Date(last_time_cookie).toString();
+                    console.log(last_time_cookie);
+                    $("#main").append(str);
+
+                }
+                //update cookie time for next usage
+                setCookie("last_time", Date.now(), 30);
+
+
             }
             initMQTT();
             loadMap();
@@ -99,6 +111,7 @@ function addRoute() {
     map.addLayer(current_layer);
 
     message = new Paho.MQTT.Message(JSON.stringify({
+        "username": current_user_name,
         "current": curent_lat_lng,
         "final": final_lat_lng
     })
@@ -127,4 +140,35 @@ var options = {
 
 function initMQTT() {
     client.connect(options);
+}
+//checking remember me option - if the user close tab or leave page
+window.addEventListener('beforeunload', function (e) {
+    if (!remember_me) {
+        $.get("/logout", function (data, status) {});
+    }
+});
+
+//Cookie Handlers
+// Source: https://stackoverflow.com/questions/14573223/set-cookie-and-get-cookie-with-javascript
+function setCookie(name, value, days) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+}
+function getCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+}
+function eraseCookie(name) {
+    document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 }

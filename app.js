@@ -45,15 +45,134 @@ app.post("/add_user", async function (req, res) {
             console.log(err);
             res.redirect("/signup.html")
         } else {
-             res.redirect("/login.html")
+            res.redirect("/login.html")
         }
     });
 
 });
 
 //LOGIN
+app.post("/login", function (req, res) {
+    res.clearCookie("userdeet");
+    var login_user = {
+        username: req.body.username,
+        password: req.body.password
+    };
+    console.log(login_user);
 
-//This was the not ajax post route
+    User.findOne({ username: login_user.username }, function (err, got_user) {
+        if (err) {
+            console.log(err);
+            res.json({ msg: "Error logging in" });
+        } else {
+            if (got_user == null) {
+                res.json({ msg: "Could not find Username! Please register!" });
+            }
+            else {
+                //Compare to the hash of the password
+                got_user.validatePassword(login_user.password).then(function (x) {
+                    if (x === true) {
+                        req.session.validUser = true;
+                        req.session.username = login_user.username;
+                        req.session.remember = req.body.rememberme == "true";
+                        req.session.allow_cookie = req.body.cookie == "true";
+                        res.json({ msg: "Success" });
+                    }
+                    else {
+                        res.json({ msg: "Wrong Password/Username combination. Please Try Again" });
+                    }
+                });
+            }
+        }
+    }
+    );
+});
+
+//validate from map and arrow
+app.get("/validate", function (req, res) {
+
+    responseObj = {
+        valid: false,
+        username: "",
+        remember: false,
+        allow_cookie:false
+    };
+    if (req.session.validUser) {
+        responseObj.valid = true;
+        responseObj.username = req.session.username;
+        responseObj.remember = req.session.remember;
+        responseObj.allow_cookie = req.session.allow_cookie;
+    }
+    res.send(responseObj);
+}
+);
+app.get("/logout", function (req, res) {
+    // res.clearCookie("userdeet");
+    req.session.destroy()
+    res.clearCookie("last_time");
+    res.redirect("/login.html")
+});
+app.get("/check_login", function (req, res) {
+    if (req.session.validUser) {
+        res.json({ already_logged_in: true });
+    }else{
+        res.json({ already_logged_in: false });
+    }
+});
+// custom 404 page 
+app.use(function (req, res) {
+    res.type('text/plain');
+    res.status(404);
+    res.send('404 - Not Found');
+});
+
+// custom 500 page 
+app.use(function (err, req, res, next) {
+    console.error(err.stack);
+    res.type('text/plain');
+    res.status(500);
+    res.send('500 - Server Error');
+});
+
+// launch 
+app.listen(app.get('port'), function () {
+    console.log('Express started on http://localhost:' + app.get('port') + '; press Ctrl-C to terminate.');
+});
+
+//MQTT -----------------------------------------------
+var mqtt = require('mqtt')
+var client = mqtt.connect('ws://localhost:9001')
+var Location = require("./models/locations.js") //load the model
+
+client.on('connect', function () {
+    client.subscribe('coe457/coordinates', function (err) {
+        if (err) {
+            console.log(err);
+        }
+    })
+});
+
+client.on('message', function (topic, message) {
+    if(topic == 'coe457/coordinates'){
+        x =JSON.parse(message.toString());
+        console.log(x);
+        var to_save_location = {
+            username: x.username,
+            current: x.current,
+            destination: x.destination
+        };
+        new Location(to_save_location).save(function (err, user) {
+            if (err) {
+                console.log(err);
+            } 
+        });
+        
+    }
+
+
+});
+//-----------------------------------------------------
+//This was the not ajax post route - ignore
 
 // app.post("/login", function (req, res) {
 //     res.clearCookie("userdeet");
@@ -79,81 +198,3 @@ app.post("/add_user", async function (req, res) {
 //     }
 //     );
 // });
-app.post("/login", function (req, res) {
-    res.clearCookie("userdeet");
-    var login_user = {
-        username: req.body.username,
-        password: req.body.password
-    };
-    console.log(login_user);
-
-    User.findOne({ username: login_user.username }, function (err, got_user) {
-        if (err) {
-
-        } else {
-            if (got_user == null) {
-                res.json({ msg: "Could not find Username! Please register!" });
-            }
-            else {
-                //Compare to the hash of the password
-                got_user.validatePassword(login_user.password).then(function (x) {
-                    if (x === true) {
-                        req.session.validUser = true;
-                        req.session.username = login_user.username;
-                        res.json({ msg: "Success" });
-                    }
-                    else {
-                        res.json({ msg: "Wrong Password/Username combination. Please Try Again" });
-                    }
-                });
-            }
-        }
-    }
-    );
-});
-
-//validate from map
-app.get("/validate", function (req, res) {
-
-    responseObj = {
-        valid: false,
-        username: "",
-        last_access: ""
-    };
-    if (req.session.validUser) {
-        responseObj.valid = true;
-        responseObj.username = req.session.username;
-        //If not first time
-        if (req.session.last_access) {
-            responseObj.last_access = req.session.last_access;
-        }
-        req.session.last_access = Date.now();
-    }
-    res.send(responseObj);
-}
-);
-app.get("/logout", function (req, res) {
-    res.clearCookie("userdeet");
-    // req.session.destroy()
-    res.redirect("/login.html")
-});
-
-// custom 404 page 
-app.use(function (req, res) {
-    res.type('text/plain');
-    res.status(404);
-    res.send('404 - Not Found');
-});
-
-// custom 500 page 
-app.use(function (err, req, res, next) {
-    console.error(err.stack);
-    res.type('text/plain');
-    res.status(500);
-    res.send('500 - Server Error');
-});
-
-// launch 
-app.listen(app.get('port'), function () {
-    console.log('Express started on http://localhost:' + app.get('port') + '; press Ctrl-C to terminate.');
-});

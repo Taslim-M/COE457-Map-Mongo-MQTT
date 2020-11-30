@@ -10,7 +10,7 @@
     <title>Login!</title>
 </head>
 
-<body>
+<body onload="isLoggedIn();">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="#">T4S</a>
@@ -54,10 +54,13 @@
                 <input type="password" class="form-control" id="password" name="password" required>
             </div>
             <div class="form-group form-check">
-                <input type="checkbox" class="form-check-input" id="exampleCheck1">
-                <label class="form-check-label" for="exampleCheck1">Check me out</label>
+                <input type="checkbox" class="form-check-input" id="rememberme" name="rememberme" checked="true">
+                <label class="form-check-label" for="rememberme">Remember Me</label>
             </div>
-
+            <div class="form-group form-check">
+                <input type="checkbox" class="form-check-input" id="cookie" name="cookie" checked="true">
+                <label class="form-check-label" for="cookie">I allow the Website to use Cookies to enhance my experience!</label>
+            </div>
         </form>
         <button type="submit" class="btn btn-success" id="loginbtn">Login</button>
     </div>
