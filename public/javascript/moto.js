@@ -6,25 +6,17 @@ function validate() {
         url: "/validate",
     }).done(function (response) {
         console.log(response);
-        if(!response.valid){
+        if (!response.valid) {
             window.location.href = "/unauthorized.html";
             // console.log("invalid");
-        }else{
+        } else {
             current_user_name = response.username;
             $("#name").html(response.username);
-            if (response.allow_cookie) {
-                console.log("cookies allowed");
-                //Check if first login
-                if (getCookie("last_time")) {
-                    last_time_cookie = getCookie("last_time");
-                    str = "Welcome back " + current_user_name + "! You last accessed at: " + Date(last_time_cookie).toString();
-                    console.log(last_time_cookie);
-                    $("#text_add").html(str);
-
-                }//update cookie time for next usage
-                setCookie("last_time", Date.now(), 30);
-
-
+            //Check if first login - server will set this to blank if cookies not allowed
+            if (response.last_access != "") {
+                date = new Date(response.last_access);
+                str = "Welcome back " + response.username + "! You last accessed at: " + date.toString();
+                $("#text_add").html(str);
             }
             initMQTT();
         }
@@ -108,27 +100,3 @@ function initMQTT() {
     client.connect(options);
 }
 
-//Cookie Handlers
-// Source: https://stackoverflow.com/questions/14573223/set-cookie-and-get-cookie-with-javascript
-function setCookie(name, value, days) {
-    var expires = "";
-    if (days) {
-        var date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "") + expires + "; path=/";
-}
-function getCookie(name) {
-    var nameEQ = name + "=";
-    var ca = document.cookie.split(';');
-    for (var i = 0; i < ca.length; i++) {
-        var c = ca[i];
-        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
-    }
-    return null;
-}
-function eraseCookie(name) {
-    document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-}

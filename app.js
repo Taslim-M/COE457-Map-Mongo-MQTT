@@ -95,13 +95,19 @@ app.get("/validate", function (req, res) {
         valid: false,
         username: "",
         remember: false,
-        allow_cookie:false
+        last_access: ""
     };
     if (req.session.validUser) {
         responseObj.valid = true;
         responseObj.username = req.session.username;
         responseObj.remember = req.session.remember;
-        responseObj.allow_cookie = req.session.allow_cookie;
+        if(req.session.allow_cookie){
+            //check if this is first time
+            if (req.session.last_access) {
+                responseObj.last_access = req.session.last_access;
+            }
+            req.session.last_access = Date.now();
+        }
     }
     res.send(responseObj);
 }
@@ -109,7 +115,6 @@ app.get("/validate", function (req, res) {
 app.get("/logout", function (req, res) {
     // res.clearCookie("userdeet");
     req.session.destroy()
-    res.clearCookie("last_time");
     res.redirect("/login.html")
 });
 app.get("/check_login", function (req, res) {
