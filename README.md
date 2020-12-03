@@ -2,7 +2,8 @@
  Express, MQTT, Cookies and MongoDB (HW3 for COE457)
 
 Description of program:<br/>
-When the user opens the application in the browser, a session is created and the
+<br/>
+o When the user opens the application in the browser, a session is created and the
 application connects to the MQTT broker.<br/>
 o A new user creates an account using a registration form to be able to use the
 web application.<br/>
